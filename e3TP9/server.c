@@ -49,6 +49,7 @@ void free_client(int client_id) {
     pthread_mutex_lock(&mutex);
     client[client_id].used = 0;
     pthread_mutex_unlock(&mutex);
+    nr_clients--;
   }
 }
 
@@ -59,6 +60,7 @@ void* client_main(void* arg) {
   char buf[100];
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
+    printf("rc = %d\n", rc);
     if(rc==0) {
       printf("Le client est partie\n");
       break;
@@ -114,17 +116,14 @@ int main(int argc, char* argv[]) {
   listen(src_sock, NCLIENTS);
   nr_clients = 0;
   while(1) {
-
     int client_sock = accept(src_sock, NULL, NULL);
-    printf("i= %d\n", nr_clients);
+    printf("i = %d\n", nr_clients);
     if(client_sock<0) {
       perror("socket pas acceptee\n");
       exit(-1);
     }
     nr_clients++;
-
     if(nr_clients<=NCLIENTS) {
-      printf("hello\n");
       client_arrived(client_sock);
     }
     else {
