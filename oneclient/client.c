@@ -69,22 +69,22 @@ void speak_to_server(int sock) {
 int main(int argc ,char **argv){
     if (argc != 3){
       perror("Il faut respecter le format ./client ::1 port\n");
-      exit(2);
+      exit(EXIT_FAILURE);
     }
     int port = htons(atoi(argv[2]));
     if(port<1024 || port>5535) {
       perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
-      exit(2);
+      exit(EXIT_FAILURE);
     }
     int client_socket = connect_server(argv[1],argv[2]);
     if(client_socket<0) {
       perror("Erreur de conection avec le serveur\n");
-      exit(2);
+      exit(EXIT_FAILURE);
     }
     speak_to_server(client_socket);
     if(close(client_socket)<0){
       perror("Erreur close\n");
-      exit(2);
+      exit(EXIT_FAILURE);
     }
     return 0;
 }

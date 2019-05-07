@@ -40,12 +40,12 @@ int client_arrived(int client_sock) {
 int main(int argc, char* argv[]) {
   if(argc!=2) {
     perror("Il faut respecter le format ./server port\n");
-    exit(2);
+    exit(EXIT_FAILURE);
   }
   int port = htons(atoi(argv[1]));
   if(port<1024 || port>5535) {
     perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
-    exit(2);
+    exit(EXIT_FAILURE);
   }
   struct sockaddr_in6 sin6;
   memset(&sin6, 0, sizeof(sin6));
@@ -54,15 +54,20 @@ int main(int argc, char* argv[]) {
   int srv_sock=socket(AF_INET6, SOCK_STREAM, 0);
   if(srv_sock<0) {
     perror("Erreur socket\n");
-    exit(2);
+    exit(EXIT_FAILURE);
+  }
+  int optval=1;
+  if(setsockopt(srv_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+    perror("Erreur socket\n");
+    exit(EXIT_FAILURE);
   }
   if(bind(srv_sock, (struct sockaddr *)&sin6, sizeof(sin6))<0) {
     perror("Erreur bind\n");
-    exit(2);
+    exit(EXIT_FAILURE);
   }
   if(listen(srv_sock, 10)<0) {
     perror("Erreur listen\n");
-    exit(2);
+    exit(EXIT_FAILURE);
   }
   while(1) {
     int client_sock = accept(srv_sock, NULL, NULL);
