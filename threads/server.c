@@ -31,14 +31,15 @@ int unused_id() {
 }
 
 int alloc_client() {
-  int id = unused_id();
   pthread_mutex_lock(&mutex);
-  if (id == -1) {
+  int id = unused_id();
+  if(id == -1) {
     pthread_mutex_unlock(&mutex);
     return -1; //aucun indice libre
   }
   else {
-    client[id].used = 1;
+    client[id].used=1;
+    nr_clients++;
     pthread_mutex_unlock(&mutex); //liberer le mutex
     return id;
   }
@@ -47,22 +48,20 @@ int alloc_client() {
 void free_client(int client_id) {
   if(client_id != -1) {
     pthread_mutex_lock(&mutex);
-    client[client_id].used = 0;
-    pthread_mutex_unlock(&mutex);
+    client[client_id].used=0;
     nr_clients--;
+    pthread_mutex_unlock(&mutex);
   }
 }
 
 void* client_main(void* arg) {
-  int client_id = *((int *) arg);
-  int client_sock = client[client_id].sock;
+  int client_sock = *((int *) arg);
   int rc;
-  char buf[100];
+  char buf[512];
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
-    printf("rc = %d\n", rc);
     if(rc==0) {
-      printf("Le client est partie\n");
+      printf("Le client s'est deconnecte\n");
       break;
     }
     if(rc<0) {
@@ -79,7 +78,7 @@ void* client_main(void* arg) {
   if(close(client_sock)<0) {
     perror("Erreur de fermeture\n");
   }
-  free_client(client_id);
+  free_client(client_sock);
 }
 
 void client_arrived(int client_sock) {
@@ -91,7 +90,7 @@ void client_arrived(int client_sock) {
     create_thread = pthread_create(&(client[client_id].thread), NULL, &client_main, sock);//(void*)nr_clients
     if(create_thread<0) {
       perror("le thread n'a pas pu etre cree\n");
-      exit(-1);
+      exit(2);
     }
     else {
         printf("un thread est cree\n");
@@ -103,7 +102,7 @@ void client_arrived(int client_sock) {
 int main(int argc, char* argv[]) {
   if(argc!=2) {
     perror("Il faut respecter le format ./server port\n");
-    exit(-1);
+    exit(2);
   }
   int src_sock=socket(AF_INET6, SOCK_STREAM, 0);
   struct sockaddr_in6 sin6;
@@ -121,9 +120,8 @@ int main(int argc, char* argv[]) {
     printf("i = %d\n", nr_clients);
     if(client_sock<0) {
       perror("socket pas acceptee\n");
-      exit(-1);
+      exit(2);
     }
-    nr_clients++;
     if(nr_clients<=NCLIENTS) {
       client_arrived(client_sock);
     }
