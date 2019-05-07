@@ -62,6 +62,17 @@ void speak_to_server(int sock){
     }
 }
 
+void speak_to_server(int sock){
+    while(1){
+        printf(">>>");
+        char buf[BUFSIZE];
+        fgets(buf, 100, stdin);
+        if(receive_message(sock,buf,BUFSIZE)<0) {
+          perror("Le message n'a pas ete recu\n");
+        }
+    }
+}
+
 
 int main(int argc ,char **argv){
     if (argc != 3){
