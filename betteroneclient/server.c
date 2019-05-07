@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
   int optval=1;
-  if(setsockopt(src_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+  if(setsockopt(srv_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
     perror("Erreur socket\n");
     exit(EXIT_FAILURE);
   }
