@@ -55,58 +55,63 @@ void free_client(int client_id) {
 }
 
 void* client_main(void* arg) {
-  int client_sock = *((int *) arg);
+  printf("in clint_main**************************");
   int rc;
   char buf[512];
+  int client_sock = *((int*) arg);
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
     if(rc==0) {
       printf("Le client s'est deconnecte\n");
+      free_client(client_sock);
       break;
     }
     if(rc<0) {
-      perror("Erreur de lecture\n");
+      perror("Erreur read");
       break;
     }
     buf[rc]='\0';
     printf("%s", buf);
     if(write(client_sock, buf, rc)<0) {
-      perror("Erreur d'ecriture\n");
+      perror("Erreur write");
       break;
     }
+    memset(buf ,'\0', 512); //supprimer le contenue du buffer
   }
   if(close(client_sock)<0) {
-    perror("Erreur de fermeture\n");
+      perror("Erreur close");
   }
   free_client(client_sock);
 }
 
-void client_arrived(int client_sock) {
-  int create_thread;
-  void *sock = &client_sock;
-  int client_id = alloc_client();
-  if(client_id != -1) {
-    client[client_id].sock = client_sock;
-    create_thread = pthread_create(&(client[client_id].thread), NULL, &client_main, sock);//(void*)nr_clients
-    if(create_thread<0) {
-      perror("le thread n'a pas pu etre cree\n");
-      exit(EXIT_FAILURE);
-    }
-    else {
-        printf("un thread est cree\n");
-    }
-    //client_main(client[client_id].sock, client_id);
+int client_arrived(int client_sock) {
+  int index = alloc_client();
+  printf("index = %d\n",index);
+  if(index<0) {
+      printf("Il y n'a aucun indice libre\n");
+      return -1;
   }
+  client[index].sock = client_sock;
+  pthread_t thread = client[index].thread;
+  void *client_sock_p = &client_sock;
+  if(pthread_create(&thread, NULL, &client_main, client_sock_p)<0) {
+    perror("Le thread n'a pas pu etre cree");
+    return -1;
+  }
+  else {
+    printf("Un thread a ete cree\n");
+  }
+  return 0;
 }
 
 int main(int argc, char* argv[]) {
   if(argc!=2) {
-    perror("Il faut respecter le format ./server port\n");
+    perror("Il faut respecter le format ./server port");
     exit(EXIT_FAILURE);
   }
   int port = htons(atoi(argv[1]));
   if(port<1024 || port>5535) {
-    perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
+    perror("Il faut que le port soit dans l'intervale [1024, 65535]");
     exit(EXIT_FAILURE);
   }
   struct sockaddr_in6 sin6;
@@ -115,34 +120,32 @@ int main(int argc, char* argv[]) {
   sin6.sin6_port = port;
   int srv_sock=socket(AF_INET6, SOCK_STREAM, 0);
   if(srv_sock<0) {
-    perror("Erreur socket\n");
+    perror("Erreur socket");
     exit(EXIT_FAILURE);
   }
   int optval=1;
   if(setsockopt(srv_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
-    perror("Erreur socket\n");
+    perror("Erreur socket");
     exit(EXIT_FAILURE);
   }
   if(bind(srv_sock, (struct sockaddr *)&sin6, sizeof(sin6))<0) {
-    perror("Erreur bind\n");
+    perror("Erreur bind");
     exit(EXIT_FAILURE);
   }
   if(listen(srv_sock, 10)<0) {
-    perror("Erreur listen\n");
+    perror("Erreur listen");
     exit(EXIT_FAILURE);
   }
   nr_clients = 0;
   while(1) {
-    int client_sock = accept(src_sock, NULL, NULL);
+    int client_sock = accept(srv_sock, NULL, NULL);
     if(client_sock<0) {
-      perror("socket pas acceptee\n");
-      exit(EXIT_FAILURE);
+      perror("Erreur accept");
     }
-    if(nr_clients<=NCLIENTS) {
-      client_arrived(client_sock);
+    if(client_arrived(client_sock)<0) {
+      perror("Erreur de communication avec le client");
     }
-    else {
-      printf("le nombre de clients a depasse la limite\n");
-    }
+    //pthread_join
   }
+  return 0;
 }
