@@ -4,11 +4,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+#include <stdbool.h>
+#include <arpa/inet.h>
+#define BUFSIZE 100
 
-int connect_server(const char *host, const char *port) {
+int connect_server(const char *host, const char *port){
     struct sockaddr_in6 sin6;
     int sock = socket(AF_INET6, SOCK_STREAM, 0);
     if(sock<0)
@@ -32,59 +34,49 @@ int connect_server(const char *host, const char *port) {
     return sock;
 }
 
-int received_message(int sock, char *buffer, int size) {
-    char received[size];
-    if(write(sock, buffer, size)<0) {
+int receive_message(int sock , char *buffer , int size){
+    char receive[BUFSIZE];
+    if(write(sock,buffer,size)<0) {
         perror("Erreur write\n");
     }
-    if(read(sock, received, size)<0) {
+    if(read(sock,receive,BUFSIZE)<0) {
         perror("Erreur read\n");
     }
-    printf("%s", received);
-    if((strncmp(buffer, "quit", 4)==0)||(strncmp(buffer, "q", 1)==0)){
-        printf("Vous vous etes deconecte\n");
+    printf("%s\n",receive);
+    if(strncmp(buffer,"quit",4) == 0){
+        printf("Le client s'est deconecte\n");
         return 0;
     }
-    memset(received, '\0', size); //supprimer le contenue du buffer
-    return 1;
+    memset(receive, '\0', BUFSIZE); //supprimer le contenue du buffer
+    return 0;
 }
 
-void speak_to_server(int sock) {
-    int rc;
+void speak_to_server(int sock){
     while(1){
-        printf(">>> ");
-        char buf[512];
-        fgets(buf, 512, stdin);
-        rc = received_message(sock, buf, 512);
-        if(rc<0) {
+        printf(">>>");
+        char buf[BUFSIZE];
+        fgets(buf, 100, stdin);
+        if(receive_message(sock,buf,BUFSIZE)<0) {
           perror("Le message n'a pas ete recu\n");
-        }
-        if(rc==0) {
-          //Le message de deconnection a deja ete affiche dans received_message
-          break;
         }
     }
 }
+
 
 int main(int argc ,char **argv){
     if (argc != 3){
-      perror("Il faut respecter le format ./client ::1 port\n");
-      exit(2);
-    }
-    int port = htons(atoi(argv[2]));
-    if(port<1024 || port>5535) {
-      perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
-      exit(2);
+      perror("Il faut respecter le format ./client host port\n");
+      return -1;
     }
     int client_socket = connect_server(argv[1],argv[2]);
     if(client_socket<0) {
-      perror("Erreur de conection avec le serveur\n");
-      exit(2);
+      perror("Erreur de conection avec le serveur");
+      return -1;
     }
     speak_to_server(client_socket);
+
     if(close(client_socket)<0){
-      perror("Erreur close\n");
-      exit(2);
+      perror("closing socket\n");
     }
     return 0;
 }
