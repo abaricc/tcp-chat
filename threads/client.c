@@ -33,7 +33,7 @@ int connect_server(const char *host, const char *port) {
 }
 
 int received_message(int sock, char *buffer, int size) {
-    char received[size];
+    char received[100];
     if(write(sock, buffer, size)<0) {
         perror("Erreur write\n");
     }

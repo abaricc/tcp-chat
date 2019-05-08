@@ -33,7 +33,7 @@ int connect_server(const char *host, const char *port) {
 }
 
 int received_message(int sock, char *buffer, int size) {
-    char received[size];
+    char received[100];
     if(write(sock, buffer, size)<0) {
         perror("Erreur write\n");
     }
@@ -69,22 +69,22 @@ void speak_to_server(int sock) {
 int main(int argc ,char **argv){
     if (argc != 3){
       perror("Il faut respecter le format ./client ::1 port\n");
-      exit(EXIT_FAILURE);
+      exit(2);
     }
     int port = htons(atoi(argv[2]));
     if(port<1024 || port>65535) {
       perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
-      exit(EXIT_FAILURE);
+      exit(2);
     }
     int client_socket = connect_server(argv[1],argv[2]);
     if(client_socket<0) {
       perror("Erreur de conection avec le serveur\n");
-      exit(EXIT_FAILURE);
+      exit(2);
     }
     speak_to_server(client_socket);
     if(close(client_socket)<0){
       perror("Erreur close\n");
-      exit(EXIT_FAILURE);
+      exit(2);
     }
     return 0;
 }

@@ -86,8 +86,8 @@ void* client_main(void* arg) {
 int client_arrived(int client_sock) {
   int index = alloc_client();
   if(index<0) {
-      printf("Il y n'a aucun indice libre\n");
-      return -1;
+    printf("Il y n'a aucun indice libre\n");
+    return -1;
   }
   client[index].sock = client_sock;
   pthread_t thread = client[index].thread;
@@ -96,9 +96,7 @@ int client_arrived(int client_sock) {
     perror("Le thread n'a pas pu etre cree");
     return -1;
   }
-  else {
-    printf("Un thread a ete cree\n");
-  }
+  printf("Un thread a ete cree\n");
   return 0;
 }
 
@@ -143,7 +141,13 @@ int main(int argc, char* argv[]) {
     if(client_arrived(client_sock)<0) {
       perror("Erreur de communication avec le client");
     }
-    //pthread_join
+    if(nr_clients>=NCLIENTS) {
+      nr_clients = 0;
+      while(nr_clients<NCLIENTS) {
+        pthread_join(client[nr_clients++].thread, NULL);
+      }
+      nr_clients = 0;
+    }
   }
   return 0;
 }
