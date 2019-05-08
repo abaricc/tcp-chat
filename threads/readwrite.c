@@ -57,7 +57,7 @@ void free_client(int client_id) {
 void* client_main(void* arg) {
   printf("in clint_main**************************");
   int rc;
-  char buf[512];
+  char buf[100];
   int client_sock = *((int*) arg);
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
@@ -76,7 +76,7 @@ void* client_main(void* arg) {
       perror("Erreur write");
       break;
     }
-    memset(buf ,'\0', 512); //supprimer le contenue du buffer
+    memset(buf ,'\0', 100); //supprimer le contenue du buffer
   }
   if(close(client_sock)<0) {
       perror("Erreur close");

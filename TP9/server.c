@@ -10,7 +10,7 @@
 
 int client_arrived(int client_sock) {
   int rc;
-  char buf[512];
+  char buf[100];
   printf("Le client est arrive\n");
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
@@ -28,7 +28,7 @@ int client_arrived(int client_sock) {
       perror("Erreur write\n");
       break;
     }
-    memset(buf ,'\0', 512); //supprimer le contenue du buffer
+    memset(buf ,'\0', 100); //supprimer le contenue du buffer
   }
   if(close(client_sock)<0) {
       perror("Erreur close");

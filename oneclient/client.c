@@ -53,9 +53,9 @@ void speak_to_server(int sock) {
     int rc;
     while(1){
         printf(">>> ");
-        char buf[512];
-        fgets(buf, 512, stdin);
-        rc = received_message(sock, buf, 512);
+        char buf[100];
+        fgets(buf, 100, stdin);
+        rc = received_message(sock, buf, 100);
         if(rc<0) {
           perror("Le message n'a pas ete recu\n");
         }

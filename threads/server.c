@@ -57,7 +57,7 @@ void free_client(int client_id) {
 void* client_main(void* arg) {
   int client_sock = *((int *) arg);
   int rc;
-  char buf[512];
+  char buf[100];
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
     if(rc==0) {
