@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -10,6 +10,10 @@
 #include <pthread.h>
 
 #define NCLIENTS 3 //100
+
+#include <stdbool.h>
+char buffer[100];
+int size=0;
 
 typedef struct client_data {
   int used;
@@ -54,13 +58,48 @@ void free_client(int client_id) {
   }
 }
 
+void *handl_client(void * arg){
+//int client_socket = client[arg].sock; 
+    int client_socket = *((int*) arg);
+
+    bool flag = true;
+    do{
+        //read
+printf("in handl_client = client_socket = %d\n", client_socket);
+        size = read(client_socket,buffer,sizeof(buffer));
+        if(  size == -1 ){
+            perror("read \n");
+            break;
+        }
+        buffer[size]='\0';
+        printf("Server : client send => %s \n" ,buffer);
+        // write response
+        if( write(client_socket,"Server received your message\n",100)  == -1 ){
+            perror("write \n");
+            break;
+        }
+        if( strncmp(buffer,"exit",4) == 0){
+            flag=false;
+            printf("Client exit \n");
+            printf("waiting for other clients ...\n");
+        }
+        // clear the buffer
+        memset(buffer ,'\0', 100);
+    }while(flag == true);
+
+    if (close(client_socket) == -1){
+        perror("closing socket\n");
+    }
+    //free_client(client_socket);
+}
+
+
 void* client_main(void* arg) {
-  printf("in clint_main**************************");
-  int rc;
-  char buf[100];
   int client_sock = *((int*) arg);
+  char buf[100];
   while(1) {
-    rc = read(client_sock, buf, sizeof(buf));
+    memset(buf, 0, 100);
+    ssize_t rc = read(client_sock, buf, 100);
     if(rc==0) {
       printf("Le client s'est deconnecte\n");
       free_client(client_sock);
@@ -86,21 +125,20 @@ void* client_main(void* arg) {
 
 int client_arrived(int client_sock) {
   int index = alloc_client();
-  printf("index = %d\n",index);
   if(index<0) {
-      printf("Il y n'a aucun indice libre\n");
-      return -1;
+    printf("Il y n'a aucun indice libre\n");
+    return -1;
   }
   client[index].sock = client_sock;
+//printf("in client_arrived = client[index].sock = %d\n", client[index].sock);
   pthread_t thread = client[index].thread;
   void *client_sock_p = &client_sock;
-  if(pthread_create(&thread, NULL, &client_main, client_sock_p)<0) {
+printf("in client_arrived = client_socket = %d\n", client_sock);
+  if(pthread_create(&thread, NULL, &handl_client, &client[index].sock)<0) {
     perror("Le thread n'a pas pu etre cree");
     return -1;
   }
-  else {
-    printf("Un thread a ete cree\n");
-  }
+  printf("Un thread a ete cree\n");
   return 0;
 }
 
@@ -139,13 +177,20 @@ int main(int argc, char* argv[]) {
   nr_clients = 0;
   while(1) {
     int client_sock = accept(srv_sock, NULL, NULL);
+printf("in main = client_socket = %d\n", client_sock);
     if(client_sock<0) {
       perror("Erreur accept");
     }
     if(client_arrived(client_sock)<0) {
       perror("Erreur de communication avec le client");
     }
-    //pthread_join
+    if(nr_clients>=NCLIENTS) {
+      nr_clients = 0;
+      while(nr_clients<NCLIENTS) {
+        pthread_join(client[nr_clients++].thread, NULL);
+      }
+      nr_clients = 0;
+    }
   }
   return 0;
 }

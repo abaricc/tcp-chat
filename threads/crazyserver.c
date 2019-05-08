@@ -9,7 +9,11 @@
 #include <string.h>
 #include <pthread.h>
 
-#define NCLIENTS 3 //100
+#define NCLIENTS 10 //100
+
+#include <stdbool.h>
+char buffer[100];
+int size=0;
 
 typedef struct client_data {
   int used;
@@ -23,6 +27,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int unused_id() {
   for(int i=0; i<NCLIENTS; i++) {
+printf("i = %d\n", i);
     if(client[i].used == 0) {
       return i;
     }
@@ -56,10 +61,12 @@ void free_client(int client_id) {
 
 void* client_main(void* arg) {
   int client_sock = *((int*) arg);
-  char buf[100];
+	printf("in client_arrived clinet_sock = %d\n",client_sock);
+  char buf[500];
+  int rc = 0;
   while(1) {
-    memset(buf, 0, 100);
-    ssize_t rc = read(client_sock, buf, 100);
+    memset(buf, 0, 500);
+    rc = read(client_sock, buf, sizeof(buf));
     if(rc==0) {
       printf("Le client s'est deconnecte\n");
       free_client(client_sock);
@@ -75,12 +82,45 @@ void* client_main(void* arg) {
       perror("Erreur write");
       break;
     }
-    memset(buf ,'\0', 100); //supprimer le contenue du buffer
+    memset(buf ,'\0', 500); //supprimer le contenue du buffer
   }
   if(close(client_sock)<0) {
       perror("Erreur close");
   }
   free_client(client_sock);
+}
+
+void *handl_client(void * arg){
+    int client_socket = *((int*) arg);
+    bool flag = true;
+    do{
+        //read
+        size = read(client_socket,buffer,sizeof(buffer));
+        if(  size == -1 ){
+            perror("read \n");
+            break;
+        }
+        buffer[size]='\0';
+        printf("Server : client send => %s \n" ,buffer);
+        // write response
+        if( write(client_socket,"Server received your message\n",100)  == -1 ){
+            perror("write \n");
+            break;
+        }
+        if( strncmp(buffer,"exit",4) == 0){
+            flag=false;
+            printf("Client exit \n");
+            printf("waiting for other clients ...\n");
+        }
+        // clear the buffer
+        memset(buffer ,'\0', 100);
+    }while(flag == true);
+
+    if (close(client_socket) == -1){
+        perror("closing socket\n");
+    }
+    //free_client(client_socket);
+
 }
 
 int client_arrived(int client_sock) {
@@ -89,10 +129,11 @@ int client_arrived(int client_sock) {
     printf("Il y n'a aucun indice libre\n");
     return -1;
   }
+	printf("in client_arrived clinet_sock = %d\n",client_sock);
   client[index].sock = client_sock;
   pthread_t thread = client[index].thread;
   void *client_sock_p = &client_sock;
-  if(pthread_create(&thread, NULL, &client_main, client_sock_p)<0) {
+  if(pthread_create(&thread, NULL, &handl_client, ((void *)client_sock))<0) {
     perror("Le thread n'a pas pu etre cree");
     return -1;
   }
@@ -128,7 +169,7 @@ int main(int argc, char* argv[]) {
     perror("Erreur bind");
     exit(EXIT_FAILURE);
   }
-  if(listen(srv_sock, 10)<0) {
+  if(listen(srv_sock, NCLIENTS)<0) {
     perror("Erreur listen");
     exit(EXIT_FAILURE);
   }
