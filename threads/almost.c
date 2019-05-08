@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -70,7 +70,7 @@ void* client_main(void* arg) {
       break;
     }
     buf[rc]='\0';
-    printf("%s", buf);
+    printf("%s" ,buf);
     if(write(client_sock, buf, rc)<0) {
       perror("Erreur write");
       break;
@@ -85,6 +85,7 @@ void* client_main(void* arg) {
 
 int client_arrived(int client_sock) {
   int index = alloc_client();
+  printf("index = %d\n",index);
   if(index<0) {
       printf("Il y n'a aucun indice libre\n");
       return -1;

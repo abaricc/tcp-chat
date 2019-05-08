@@ -72,7 +72,7 @@ int main(int argc ,char **argv){
       exit(2);
     }
     int port = htons(atoi(argv[2]));
-    if(port<1024 || port>5535) {
+    if(port<1024 || port>65535) {
       perror("Il faut que le port soit dans l'intervale [1024, 65535]\n");
       exit(2);
     }
