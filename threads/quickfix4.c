@@ -11,6 +11,10 @@
 
 #define NCLIENTS 3 //100
 
+#include <stdbool.h>
+char buffer[100];
+int size=0;
+
 typedef struct client_data {
   int used;
   int sock;
@@ -54,6 +58,42 @@ void free_client(int client_id) {
   }
 }
 
+void *handl_client(void * arg){
+int client_socket = 4;
+    //int client_socket = *((int*) arg);
+
+    bool flag = true;
+    do{
+        //read
+printf("in handl_client = client_socket = %d\n", client_socket);
+        size = read(client_socket,buffer,sizeof(buffer));
+        if(  size == -1 ){
+            perror("read \n");
+            break;
+        }
+        buffer[size]='\0';
+        printf("Server : client send => %s \n" ,buffer);
+        // write response
+        if( write(client_socket,"Server received your message\n",100)  == -1 ){
+            perror("write \n");
+            break;
+        }
+        if( strncmp(buffer,"exit",4) == 0){
+            flag=false;
+            printf("Client exit \n");
+            printf("waiting for other clients ...\n");
+        }
+        // clear the buffer
+        memset(buffer ,'\0', 100);
+    }while(flag == true);
+
+    if (close(client_socket) == -1){
+        perror("closing socket\n");
+    }
+    //free_client(client_socket);
+}
+
+
 void* client_main(void* arg) {
   int client_sock = *((int*) arg);
   char buf[100];
@@ -90,8 +130,11 @@ int client_arrived(int client_sock) {
     return -1;
   }
   client[index].sock = client_sock;
+//printf("in client_arrived = client[index].sock = %d\n", client[index].sock);
   pthread_t thread = client[index].thread;
-  if(pthread_create(&thread, NULL, &client_main, &client[index].sock)<0) {
+  void *client_sock_p = &client_sock;
+printf("in client_arrived = client_socket = %d\n", client_sock);
+  if(pthread_create(&thread, NULL, &handl_client, (void *)client_sock)<0) {
     perror("Le thread n'a pas pu etre cree");
     return -1;
   }
@@ -134,6 +177,7 @@ int main(int argc, char* argv[]) {
   nr_clients = 0;
   while(1) {
     int client_sock = accept(srv_sock, NULL, NULL);
+printf("in main = client_socket = %d\n", client_sock);
     if(client_sock<0) {
       perror("Erreur accept");
     }
