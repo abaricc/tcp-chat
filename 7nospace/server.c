@@ -11,17 +11,18 @@
 
 #define NCLIENTS 100
 #define MESSAGE_MAXLEN 1024
+#define RECV_MAX 10
 
 typedef struct client_data {
   int index;
   int used;
   int sock;
   char nick[MESSAGE_MAXLEN];
+  char recv[RECV_MAX][MESSAGE_MAXLEN];
   pthread_t thread;
 } client_data;
 
 client_data client[NCLIENTS];
-int nr_clients;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int unused_id() {
@@ -42,7 +43,7 @@ int alloc_client() {
   }
   else {
     client[id].used=1;
-    nr_clients++;
+    sprintf(client[id].nick, "client%d", id);
     pthread_mutex_unlock(&mutex); //liberer le mutex
     return id;
   }
@@ -52,18 +53,16 @@ void free_client(int client_id) {
   if(client_id != -1) {
     pthread_mutex_lock(&mutex);
     client[client_id].used=0;
-    if(nr_clients>0)
-      nr_clients--;
     pthread_mutex_unlock(&mutex);
   }
 }
 
 int do_echo(int client_id, char *args, char *resp, int resp_len) {
   if(args==NULL) {
-    snprintf(resp, resp_len, "ok\n\n");
+    snprintf(resp, resp_len, "ok\n");
     return 0;
   }
-  snprintf(resp, resp_len, "ok %s\n", args);
+  snprintf(resp, resp_len, "ok %s", args);
   return 0;
 }
 
@@ -71,23 +70,89 @@ int do_rand(int client_id, char *args, char *resp, int resp_len) {
   int random;
   if(args==NULL) {
     random = rand() % 100;
-    snprintf(resp, resp_len, "ok %d\n\n", random);
+    snprintf(resp, resp_len, "ok %d\n", random);
     return 0;
   }
   int max = atoi(args);
-  snprintf(resp, resp_len, "ok %d\n\n", rand()%max);
+  snprintf(resp, resp_len, "ok %d\n", rand()%max);
   return 0;
 }
 
 int do_nick(int client_id, char *args, char *resp, int resp_len) {
   if(args==NULL) {
-    snprintf(resp, resp_len, "Vous n'avez pas choisie un pseudo\n\n");
+    snprintf(resp, resp_len, "Nick a besoin d'un argument\n");
     return 0;
   }
+  pthread_mutex_lock(&mutex);
+  sprintf(client[client_id].nick, "%s", args);
   pthread_mutex_unlock(&mutex);
-  client[client_id].used=0;
+  snprintf(resp, resp_len, "Nouveau pseudo : %s", args);
+  return 0;
+}
+
+int do_list(int client_id, char *args, char *resp, int resp_len) {
+  if(args!=NULL) {
+    snprintf(resp, resp_len, "List n'a pas besoin d'arguments\n");
+    return 0;
+  }
+  char list[1027]; //1027 est la taille max pour sprintf
+  pthread_mutex_lock(&mutex);
+  for(int i=0; i<NCLIENTS; i++) {
+    if((client[i].used == 1)&&(i!=client_id)) {
+        sprintf(list, " %s", client[i].nick);
+    }
+  }
   pthread_mutex_unlock(&mutex);
-  snprintf(resp, resp_len, "Ton pseudo est : %s\n", args);
+  snprintf(resp, resp_len, "ok%s\n", list);
+  return 0;
+}
+
+int do_send(int client_id, char *args, char *resp, int resp_len) {
+  if(args==NULL) {
+    snprintf(resp, resp_len, "Send a besoin d'un argument\n");
+    return 0;
+  }
+  char *nick, *message;
+  nick = strsep(&args," ");
+  message = args;
+  pthread_mutex_lock(&mutex);
+  for(int i=0; i<NCLIENTS; i++) {
+    if(client[i].used==1) {
+      if(strcmp(client[i].nick, nick)==0) {
+        for(int r=0; r<RECV_MAX; r++) {
+          if(strlen(client[i].recv[r])<2) {
+            sprintf(client[i].recv[r], "%s : %s", client[i].nick, message);
+            pthread_mutex_unlock(&mutex);
+            snprintf(resp, resp_len, "Votre message a ete envoye a : %s\n", nick);
+            return 0;
+          }
+        }
+      }
+    }
+  }
+  pthread_mutex_unlock(&mutex);
+  snprintf(resp, resp_len, "Boite mail de %s est pleine\n", nick);
+  return 0;
+}
+
+int do_recv(int client_id, char *args, char *resp, int resp_len) {
+  if(args!=NULL) {
+    snprintf(resp, resp_len, "Recv n'a pas besoin d'un argument\n");
+    return 0;
+  }
+  pthread_mutex_lock(&mutex);
+  for(int r; r<RECV_MAX; r++) {
+    sprintf(resp, "%s", client[client_id].recv[r]);
+    if(strlen(resp)>1) {
+      if(write(client[client_id].sock, resp, strlen(resp))<0) {
+        pthread_mutex_unlock(&mutex);
+        perror("Erreur write");
+        return -1; //erreur : on deconnecte le client
+      }
+    }
+  }
+  pthread_mutex_unlock(&mutex);
+  snprintf(resp, resp_len, "Fin messages\n");
   return 0;
 }
 
@@ -95,6 +160,7 @@ int do_quit(int client_id, char *resp, int resp_len) {
   snprintf(resp, resp_len, "quit");
   return 1;
 }
+
 
 int eval_msg(int client_id, char *msg, char *resp, int resp_len) {
   char *cmd, *args;
@@ -106,10 +172,16 @@ int eval_msg(int client_id, char *msg, char *resp, int resp_len) {
     return do_rand(client_id, args, resp, resp_len);
   else if(strcmp(cmd,"nick")==0||strcmp(cmd,"nick\n")==0)
     return do_nick(client_id, args, resp, resp_len);
+  else if(strcmp(cmd,"list")==0||strcmp(cmd,"list\n")==0)
+    return do_list(client_id, args, resp, resp_len);
+  else if(strcmp(cmd,"send")==0||strcmp(cmd,"send\n")==0)
+    return do_send(client_id, args, resp, resp_len);
+  else if(strcmp(cmd,"recv")==0||strcmp(cmd,"recv\n")==0)
+    return do_recv(client_id, args, resp, resp_len);
   if(strcmp(cmd,"quit")==0||strcmp(cmd,"quit\n")==0||strcmp(cmd,"q")==0||strcmp(cmd,"q\n")==0)
     return do_quit(client_id, resp, resp_len); //retourne 1
   else {
-    snprintf(resp, resp_len, "Command introuvable : %s\n", cmd);
+    snprintf(resp, resp_len, "Command introuvable : %s", cmd);
     return 0;
   }
 }
@@ -145,7 +217,7 @@ void* client_main(void* arg) {
       break; //erreur : on deconnecte le client
     }
     if(write(client_sock, resp, strlen(resp))<0) {
-      perror("could not send message");
+      perror("Erreur write");
       break; //erreur : on deconnecte le client
     }
     if(eval==1) { //eval_msg retourne 1 si il faut deconnecter le client
@@ -207,7 +279,6 @@ int main(int argc, char* argv[]) {
     perror("Erreur listen");
     exit(EXIT_FAILURE);
   }
-  nr_clients = 0;
   while(1) {
     int client_sock = accept(srv_sock, NULL, NULL);
     if(client_sock<0) {
@@ -215,13 +286,6 @@ int main(int argc, char* argv[]) {
     }
     if(client_arrived(client_sock)<0) {
       printf("Socket %d n'a pas pu se connecter\n", client_sock);
-    }
-    if(nr_clients>=NCLIENTS) {
-      nr_clients = 0;
-      while(nr_clients<NCLIENTS) {
-        pthread_join(client[nr_clients++].thread, NULL);
-      }
-      nr_clients = 0;
     }
   }
   return 0;
