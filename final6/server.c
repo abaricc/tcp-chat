@@ -10,7 +10,7 @@
 #include <pthread.h>
 
 #define NCLIENTS 100
-#define MESSAGE_MAXLEN 100
+#define MESSAGE_MAXLEN 1024
 
 typedef struct client_data {
   int index;
@@ -78,24 +78,21 @@ int do_rand(int client_id, char *args, char *resp, int resp_len) {
   return 0;
 }
 
-int do_quit(int client_id, char *args, char *resp, int resp_len) {
-  //"this is quit";
-  return 0;
+int do_quit(int client_id, char *resp, int resp_len) {
+  snprintf(resp, resp_len, "quit");
+  return 1;
 }
 
 int eval_msg(int client_id, char *msg, char *resp, int resp_len) {
   char *cmd, *args;
   cmd = strsep(&msg," ");
   args = msg;
-  printf("cmd = %s\n",cmd);
-  printf("args = %s\n",args);
-  //analysemsgetseparelacommandedesarguments
   if(strcmp(cmd,"echo")==0||strcmp(cmd,"echo\n")==0)
     return do_echo(client_id, args, resp, resp_len);
   else if(strcmp(cmd,"rand")==0||strcmp(cmd,"rand\n")==0)
     return do_rand(client_id, args, resp, resp_len);
   if(strcmp(cmd,"quit")==0||strcmp(cmd,"quit\n")==0||strcmp(cmd,"q")==0||strcmp(cmd,"q\n")==0)
-    return do_quit(client_id, args, resp, resp_len);
+    return do_quit(client_id, resp, resp_len); //retourne 1
   else {
     snprintf(resp, resp_len, "Command introuvable : %s\n", cmd);
     return 0;
@@ -112,11 +109,6 @@ int receive_message(int client_id, char *msg, int size) {
     }
     received_msg[rc] = '\n';
     printf("Client %d => %s", client_id, received_msg);
-    if((strncmp(received_msg, "quit", 4)==0)||(strncmp(received_msg, "q", 1)==0)){
-        printf("Client %d s'est deconecte\n", client_id);
-        free_client(client_id);
-        return 0;
-    }
     snprintf(msg, size, "%s", received_msg);
     memset(received_msg, '\0', size); //supprimer le contenue du buffer
     return 0;
@@ -126,22 +118,24 @@ void* client_main(void* arg) {
   int client_id = *((int*) arg);
   int client_sock = client[client_id].sock;
   char msg[MESSAGE_MAXLEN];
-  //char cmd[MESSAGE_MAXLEN];
   char resp[MESSAGE_MAXLEN];
-  //char received[MESSAGE_MAXLEN];
+  int eval;
   printf("Le client %d est arrive\n", client_id);
   while(1) {
-
     if(receive_message(client_id, msg, sizeof(msg))<0) {
-      break; /*erreur:on deconnecte le client*/
+      break; //erreur : on deconnecte le client
     }
-    printf("msg = %s\n", msg);
-    if(eval_msg(client_id, msg, resp, sizeof(resp))<0)
-      break; /*erreur:ondeconnecteleclient*/
-    printf("resp = %s\n", resp);
+    eval = eval_msg(client_id, msg, resp, sizeof(resp));
+    if(eval<0) {
+      break; //erreur : on deconnecte le client
+    }
     if(write(client_sock, resp, strlen(resp))<0) {
       perror("could not send message");
-      break; /*erreur:ondeconnecteleclient*/
+      break; //erreur : on deconnecte le client
+    }
+    if(eval==1) { //eval_msg retourne 1 si il faut deconnecter le client
+      printf("Client %d s'est deconnecte\n", client_id);
+      break; //on deconnecte le client
     }
   }
   if(close(client_sock)<0) {

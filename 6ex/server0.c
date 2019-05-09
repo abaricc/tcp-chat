@@ -73,6 +73,14 @@ int do_rand(int client_id, char *args, char *resp, int resp_len) {
     snprintf(resp, resp_len, "ok %d\n\n", random);
     return 0;
   }
+  /*
+  char *arg1, *arg2;
+  arg1 = strsep(&args, " ");
+  arg2 = args;
+  if(arg2!=NULL) {
+    snprintf(resp, resp_len, "Il faut respecter le format : rand nombre\n");
+  }
+  */
   int max = atoi(args);
   snprintf(resp, resp_len, "ok %d\n\n", rand()%max);
   return 0;

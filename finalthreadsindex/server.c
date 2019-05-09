@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
       perror("Erreur accept");
     }
     if(client_arrived(client_sock)<0) {
-      printf("Le client au socket n'a pas pu se connecter\n");
+      printf("Socket %d n'a pas pu se connecter\n", client_sock);
     }
     if(nr_clients>=NCLIENTS) {
       nr_clients = 0;
