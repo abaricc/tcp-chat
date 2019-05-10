@@ -8,9 +8,11 @@
 #include <sys/uio.h>
 #include <string.h>
 
+#define MESSAGE_MAXLEN 1024
+
 int client_arrived(int client_sock) {
   int rc;
-  char buf[100];
+  char buf[MESSAGE_MAXLEN];
   printf("Le client est arrive\n");
   while(1) {
     rc = read(client_sock, buf, sizeof(buf));
@@ -28,7 +30,7 @@ int client_arrived(int client_sock) {
       perror("Erreur write\n");
       break;
     }
-    memset(buf ,'\0', 100); //supprimer le contenue du buffer
+    memset(buf ,'\0', MESSAGE_MAXLEN); //supprimer le contenue du buffer
   }
   if(close(client_sock)<0) {
       perror("Erreur close");

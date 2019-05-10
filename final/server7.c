@@ -8,17 +8,18 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 
 #define NCLIENTS 100
 #define MESSAGE_MAXLEN 1024
-#define RECV_MAX 10
+#define RECV_MAX 10 //Nombre max des messages dans la boite
 
 typedef struct client_data {
   int index;
   int used;
   int sock;
   char nick[MESSAGE_MAXLEN];
-  char recv[RECV_MAX][MESSAGE_MAXLEN];
+  char recv[RECV_MAX][MESSAGE_MAXLEN]; //boite des messages
   pthread_t thread;
 } client_data;
 
@@ -38,7 +39,7 @@ int alloc_client() {
   pthread_mutex_lock(&mutex);
   int id = unused_id();
   if(id == -1) {
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex); //liberer le mutex
     return -1; //aucun indice libre
   }
   else {
@@ -59,23 +60,24 @@ void free_client(int client_id) {
 
 int do_echo(int client_id, char *args, char *resp, int resp_len) {
   if(args==NULL) {
-    snprintf(resp, resp_len, "ok\n");
+    snprintf(resp, resp_len, "ok\n"); //echo sans argument
     return 0;
   }
-  snprintf(resp, resp_len, "ok %s", args);
+  snprintf(resp, resp_len, "ok %s", args); //echo avec argument
   return 0;
 }
 
 int do_rand(int client_id, char *args, char *resp, int resp_len) {
   int random;
-  if(args==NULL) {
+  srand(time(0));
+  if(args==NULL) { //rand sans argument
     random = rand() % 100;
     snprintf(resp, resp_len, "ok %d\n", random);
     return 0;
   }
   int max = atoi(args);
   snprintf(resp, resp_len, "ok %d\n", rand()%max);
-  return 0;
+  return 0; //rand avec argument
 }
 
 int do_nick(int client_id, char *args, char *resp, int resp_len) {
@@ -95,15 +97,16 @@ int do_list(int client_id, char *args, char *resp, int resp_len) {
     snprintf(resp, resp_len, "List n'a pas besoin d'arguments\n");
     return 0;
   }
-  char list[1027]; //1027 est la taille max pour sprintf
+  char list[1027]; //1027 est la taille max possible pour sprintf
   pthread_mutex_lock(&mutex);
   for(int i=0; i<NCLIENTS; i++) {
     if((client[i].used == 1)&&(i!=client_id)) {
-        sprintf(list, " %s", client[i].nick);
+      sprintf(list, " %s", client[i].nick);
     }
   }
   pthread_mutex_unlock(&mutex);
   snprintf(resp, resp_len, "ok%s\n", list);
+  //paffichera juste ok s'il ne trouve pas des clients
   return 0;
 }
 
@@ -120,7 +123,7 @@ int do_send(int client_id, char *args, char *resp, int resp_len) {
     if(client[i].used==1) {
       if(strcmp(client[i].nick, nick)==0) {
         for(int r=0; r<RECV_MAX; r++) {
-          if(strlen(client[i].recv[r])<2) {
+          if(strlen(client[i].recv[r])<2) { //on cherche une boite vide
             sprintf(client[i].recv[r], "%s : %s", client[i].nick, message);
             pthread_mutex_unlock(&mutex);
             snprintf(resp, resp_len, "Votre message a ete envoye a : %s\n", nick);
@@ -132,7 +135,7 @@ int do_send(int client_id, char *args, char *resp, int resp_len) {
   }
   pthread_mutex_unlock(&mutex);
   snprintf(resp, resp_len, "Boite mail de %s est pleine\n", nick);
-  return 0;
+  return 0; //le message n'a pas ete envoye car il n'a pas la place
 }
 
 int do_recv(int client_id, char *args, char *resp, int resp_len) {
@@ -158,8 +161,9 @@ int do_recv(int client_id, char *args, char *resp, int resp_len) {
 
 int do_quit(int client_id, char *resp, int resp_len) {
   snprintf(resp, resp_len, "quit");
+  //quit sera detecte par client pour se deconnecter
   return 1;
-}
+} //eval_msg retournera 1 juste dans le cas ou le client veux quitter
 
 
 int eval_msg(int client_id, char *msg, char *resp, int resp_len) {

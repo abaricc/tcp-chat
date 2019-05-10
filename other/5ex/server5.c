@@ -8,6 +8,7 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <pthread.h>
+#include <netdb.h>
 
 #define NCLIENTS 100
 #define MESSAGE_MAXLEN 1024
@@ -132,9 +133,15 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
   while(1) {
-    int client_sock = accept(srv_sock, NULL, NULL);
+    struct sockaddr_in6 addr;
+    socklen_t addr_len = sizeof(addr);
+    int client_sock = accept(srv_sock, (struct sockaddr *)&addr, &addr_len);
     if(client_sock<0) {
       perror("Erreur accept");
+    }
+    char nameinfo[NI_MAXHOST];
+    if(getnameinfo((struct sockaddr *)&addr, addr_len, nameinfo, sizeof(nameinfo), NULL, 0, 0)==0) {
+      printf("connecte a : %s\n", nameinfo);
     }
     if(client_arrived(client_sock)<0) {
       printf("Socket %d n'a pas pu se connecter\n", client_sock);

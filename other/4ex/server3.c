@@ -20,6 +20,7 @@ typedef struct client_data {
 } client_data;
 
 client_data client[NCLIENTS];
+int nr_clients;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int unused_id() {
@@ -40,6 +41,7 @@ int alloc_client() {
   }
   else {
     client[id].used=1;
+    nr_clients++;
     pthread_mutex_unlock(&mutex); //liberer le mutex
     return id;
   }
@@ -48,6 +50,7 @@ int alloc_client() {
 void free_client(int client_id) {
   pthread_mutex_lock(&mutex);
   client[client_id].used=0;
+  nr_clients--;
   pthread_mutex_unlock(&mutex);
 }
 
@@ -131,6 +134,7 @@ int main(int argc, char* argv[]) {
     perror("Erreur listen");
     exit(EXIT_FAILURE);
   }
+  nr_clients = 0;
   while(1) {
     int client_sock = accept(srv_sock, NULL, NULL);
     if(client_sock<0) {
@@ -138,6 +142,13 @@ int main(int argc, char* argv[]) {
     }
     if(client_arrived(client_sock)<0) {
       printf("Socket %d n'a pas pu se connecter\n", client_sock);
+    }
+    if(nr_clients>=NCLIENTS) {
+      nr_clients = 0;
+      while(nr_clients<NCLIENTS) {
+        pthread_join(client[nr_clients++].thread, NULL);
+      }
+      nr_clients = 0;
     }
   }
   return 0;

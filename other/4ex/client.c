@@ -10,28 +10,31 @@
 
 #define MESSAGE_MAXLEN 1024
 
-int connect_server(const char *host, const char *port) {
-    struct sockaddr_in6 sin6;
-    int sock = socket(AF_INET6, SOCK_STREAM, 0);
-    if(sock<0)
-    {
-        perror("Erreur socket\n");
-        return -1;
+int connect_server(const char *hostname, const char *port) {
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET6;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = 0;
+  hints.ai_flags = AI_V4MAPPED | AI_ALL;
+  struct addrinfo *res;
+  int rc = getaddrinfo(hostname, port, &hints, &res);
+  if(rc<0) {
+    printf("invalidaddress/port:%s\n",gai_strerror(rc));
+    exit(1);
+  }
+  for(; res!=NULL; res = res->ai_next) {
+    int srv_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if(srv_sock<0)
+      continue;
+    if(connect(srv_sock,res->ai_addr,res->ai_addrlen)<0) {
+      perror("connectionfailed");
+      close(srv_sock);
+      continue;
     }
-    memset(&sin6, '0', sizeof(sin6));
-    sin6.sin6_family = AF_INET6;
-    sin6.sin6_port = htons(atoi(port));
-    if(inet_pton(AF_INET6, host, &sin6.sin6_addr)<0)
-    {
-        printf("L'adresse n'est pas valide\n");
-        return -1;
-    }
-    if(connect(sock, (struct sockaddr *)&sin6, sizeof(sin6))<0)
-    {
-        printf("Erreur connect\n");
-        return -1;
-    }
-    return sock;
+    return srv_sock;
+  }
+  exit(1);
 }
 
 int receive_message(int sock, char *buffer, int size) {
