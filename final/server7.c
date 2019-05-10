@@ -44,7 +44,7 @@ int alloc_client() {
   }
   else {
     client[id].used=1;
-    sprintf(client[id].nick, "client%d", id);
+    sprintf(client[id].nick, "client%d\n", id);
     pthread_mutex_unlock(&mutex); //liberer le mutex
     return id;
   }
@@ -105,8 +105,12 @@ int do_list(int client_id, char *args, char *resp, int resp_len) {
     }
   }
   pthread_mutex_unlock(&mutex);
-  snprintf(resp, resp_len, "ok%s\n", list);
-  //paffichera juste ok s'il ne trouve pas des clients
+  if(strlen(list)<=1) {
+    snprintf(resp, resp_len, "ok\n");
+  } //affichera juste ok s'il n'y a pas d'autres clients
+  else {
+    snprintf(resp, resp_len, "ok%s", list);
+  } //affichera la liste
   return 0;
 }
 

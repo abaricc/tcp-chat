@@ -157,6 +157,7 @@ int client_arrived(int client_sock) {
     return -1;
   }
   return 0;
+}
 
 int main(int argc, char* argv[]) {
   if(argc!=2) {
