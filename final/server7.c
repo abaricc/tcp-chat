@@ -8,7 +8,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <pthread.h>
-#include <time.h>
 
 #define NCLIENTS 100
 #define MESSAGE_MAXLEN 1024
@@ -39,12 +38,12 @@ int alloc_client() {
   pthread_mutex_lock(&mutex);
   int id = unused_id();
   if(id == -1) {
-    pthread_mutex_unlock(&mutex); //liberer le mutex
+    pthread_mutex_unlock(&mutex);
     return -1; //aucun indice libre
   }
   else {
     client[id].used=1;
-    sprintf(client[id].nick, "client%d\n", id);
+    sprintf(client[id].nick, "client%d", id);
     pthread_mutex_unlock(&mutex); //liberer le mutex
     return id;
   }
@@ -69,7 +68,6 @@ int do_echo(int client_id, char *args, char *resp, int resp_len) {
 
 int do_rand(int client_id, char *args, char *resp, int resp_len) {
   int random;
-  srand(time(0));
   if(args==NULL) { //rand sans argument
     random = rand() % 100;
     snprintf(resp, resp_len, "ok %d\n", random);
@@ -97,20 +95,15 @@ int do_list(int client_id, char *args, char *resp, int resp_len) {
     snprintf(resp, resp_len, "List n'a pas besoin d'arguments\n");
     return 0;
   }
-  char list[1027]; //1027 est la taille max possible pour sprintf
+  char list[1027]; //1027 est la taille max pour sprintf
   pthread_mutex_lock(&mutex);
   for(int i=0; i<NCLIENTS; i++) {
     if((client[i].used == 1)&&(i!=client_id)) {
-      sprintf(list, " %s", client[i].nick);
+        sprintf(list, " %s", client[i].nick);
     }
   }
   pthread_mutex_unlock(&mutex);
-  if(strlen(list)<=1) {
-    snprintf(resp, resp_len, "ok\n");
-  } //affichera juste ok s'il n'y a pas d'autres clients
-  else {
-    snprintf(resp, resp_len, "ok%s", list);
-  } //affichera la liste
+  snprintf(resp, resp_len, "ok%s\n", list); //affichera la liste
   return 0;
 }
 
