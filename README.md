@@ -1,5 +1,5 @@
 
-# TCP/IP Chat Application
+# :speech_balloon: TCP/IP Chat Application
 A simple application that enables multiple clients to exchange messages through a server using socket programming and multithreading.
 
 ## Run a server
